@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -112,7 +113,7 @@ const Auth = () => {
         email: signupData.email,
         password: signupData.password,
         options: {
-          emailRedirectTo: undefined, // Disable email confirmation
+          emailRedirectTo: undefined, // Disable email confirmation redirect
           data: {
             name: signupData.name,
             mobile: signupData.mobile,
@@ -126,6 +127,7 @@ const Auth = () => {
       }
 
       if (data.user) {
+        // If email confirmation is disabled in Supabase, user will be created and can login immediately
         toast({
           title: "Registration Successful",
           description: "Account created successfully! You can now login.",
