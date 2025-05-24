@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,19 +9,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Leaf, Plus, Eye, Edit, Trash2, User, LogOut } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const FarmerDashboard = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Mock farmer data
-  const farmerData = {
-    name: "Rajesh Kumar",
-    mobile: "+91 9876543210",
-    email: "rajesh@example.com"
-  };
+  // User and profile data
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [marketPrices, setMarketPrices] = useState<any[]>([]);
 
   // Form state for crop submission
   const [cropData, setCropData] = useState({
@@ -32,56 +33,120 @@ const FarmerDashboard = () => {
     notes: ''
   });
 
-  // Mock submissions data
-  const [submissions, setSubmissions] = useState([
-    {
-      id: 1,
-      cropName: "Tomatoes",
-      quantity: 500,
-      desiredPrice: 45,
-      status: "Active",
-      submissionDate: "2024-05-24",
-      notes: "Fresh organic tomatoes, harvested yesterday"
-    },
-    {
-      id: 2,
-      cropName: "Onions",
-      quantity: 200,
-      desiredPrice: 35,
-      status: "Pending Match",
-      submissionDate: "2024-05-23",
-      notes: "Premium quality red onions"
-    }
-  ]);
-
-  // Mock market prices for viewing
-  const marketPrices = [
-    { cropName: "Tomatoes", price: 45, market: "Central Market", date: "2024-05-24" },
-    { cropName: "Onions", price: 35, market: "Farmers Plaza", date: "2024-05-24" },
-    { cropName: "Wheat", price: 28, market: "Grain Exchange", date: "2024-05-23" },
-    { cropName: "Rice", price: 55, market: "Wholesale Hub", date: "2024-05-23" },
-  ];
-
   const cropOptions = [
     "Tomatoes", "Onions", "Wheat", "Rice", "Potatoes", "Corn", "Carrots", "Cabbage", "Other"
   ];
 
-  const handleCropSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    checkAuth();
+    fetchData();
+  }, []);
+
+  const checkAuth = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      navigate('/auth');
+      return;
+    }
+
+    // Fetch user profile
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching profile:', error);
+      toast({
+        title: "Error",
+        description: "Could not fetch user profile",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (profile.user_type !== 'farmer') {
+      navigate('/marketer-dashboard');
+      return;
+    }
+
+    setUserProfile(profile);
+  };
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Fetch farmer's submissions
+      const { data: submissionsData, error: submissionsError } = await supabase
+        .from('crop_submissions')
+        .select('*')
+        .eq('farmer_id', session.user.id)
+        .order('created_at', { ascending: false });
+
+      if (submissionsError) {
+        console.error('Error fetching submissions:', submissionsError);
+      } else {
+        setSubmissions(submissionsData || []);
+      }
+
+      // Fetch market prices
+      const { data: pricesData, error: pricesError } = await supabase
+        .from('market_prices')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (pricesError) {
+        console.error('Error fetching market prices:', pricesError);
+      } else {
+        setMarketPrices(pricesData || []);
+      }
+
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCropSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      navigate('/auth');
+      return;
+    }
+
     const finalCropName = cropData.cropName === 'Other' ? cropData.customCrop : cropData.cropName;
     
-    const newSubmission = {
-      id: submissions.length + 1,
-      cropName: finalCropName,
-      quantity: parseInt(cropData.quantity),
-      desiredPrice: parseInt(cropData.desiredPrice),
-      status: "Active",
-      submissionDate: new Date().toISOString().split('T')[0],
-      notes: cropData.notes
-    };
+    const { data, error } = await supabase
+      .from('crop_submissions')
+      .insert([
+        {
+          farmer_id: session.user.id,
+          crop_name: finalCropName,
+          quantity: parseInt(cropData.quantity),
+          desired_price: parseFloat(cropData.desiredPrice),
+          notes: cropData.notes
+        }
+      ]);
 
-    setSubmissions([newSubmission, ...submissions]);
+    if (error) {
+      console.error('Error submitting crop:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit crop listing",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setCropData({
       cropName: '',
       customCrop: '',
@@ -94,15 +159,51 @@ const FarmerDashboard = () => {
       title: "Crop Submitted Successfully",
       description: `Your ${finalCropName} listing has been added to the marketplace.`,
     });
+
+    // Refresh submissions
+    fetchData();
   };
 
-  const handleDeleteSubmission = (id: number) => {
-    setSubmissions(submissions.filter(sub => sub.id !== id));
+  const handleDeleteSubmission = async (id: string) => {
+    const { error } = await supabase
+      .from('crop_submissions')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting submission:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete submission",
+        variant: "destructive"
+      });
+      return;
+    }
+
     toast({
       title: "Submission Deleted",
       description: "Your crop listing has been removed.",
     });
+
+    // Refresh submissions
+    fetchData();
   };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/auth');
+  };
+
+  if (isLoading || !userProfile) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Leaf className="h-8 w-8 text-green-600 animate-spin mx-auto mb-4" />
+          <p>Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -125,22 +226,22 @@ const FarmerDashboard = () => {
                   className="flex items-center space-x-2"
                 >
                   <User className="h-5 w-5" />
-                  <span>{farmerData.name}</span>
+                  <span>{userProfile.name}</span>
                 </Button>
                 
                 {showProfileMenu && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
                     <div className="py-1">
                       <div className="px-4 py-2 text-sm text-gray-700 border-b">
-                        Welcome, {farmerData.name}!
+                        Welcome, {userProfile.name}!
                       </div>
-                      <Link
-                        to="/auth"
-                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      <button
+                        onClick={handleLogout}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       >
                         <LogOut className="h-4 w-4 mr-2" />
                         Logout
-                      </Link>
+                      </button>
                     </div>
                   </div>
                 )}
@@ -182,11 +283,11 @@ const FarmerDashboard = () => {
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label>Farmer Name</Label>
-                      <Input value={farmerData.name} disabled className="bg-gray-50" />
+                      <Input value={userProfile.name} disabled className="bg-gray-50" />
                     </div>
                     <div className="space-y-2">
                       <Label>Mobile Number</Label>
-                      <Input value={farmerData.mobile} disabled className="bg-gray-50" />
+                      <Input value={userProfile.mobile} disabled className="bg-gray-50" />
                     </div>
                   </div>
 
@@ -236,6 +337,7 @@ const FarmerDashboard = () => {
                       <Input
                         id="price"
                         type="number"
+                        step="0.01"
                         value={cropData.desiredPrice}
                         onChange={(e) => setCropData({...cropData, desiredPrice: e.target.value})}
                         placeholder="Enter price in ₹"
@@ -271,55 +373,59 @@ const FarmerDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {submissions.map((submission) => (
-                    <Card key={submission.id} className="border border-green-100">
-                      <CardContent className="pt-6">
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-800">{submission.cropName}</h3>
-                            <p className="text-gray-600">Submitted on {submission.submissionDate}</p>
+                  {submissions.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">No submissions yet. Create your first crop listing!</p>
+                  ) : (
+                    submissions.map((submission) => (
+                      <Card key={submission.id} className="border border-green-100">
+                        <CardContent className="pt-6">
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <h3 className="text-lg font-semibold text-gray-800">{submission.crop_name}</h3>
+                              <p className="text-gray-600">Submitted on {new Date(submission.created_at).toLocaleDateString()}</p>
+                            </div>
+                            <div className="flex space-x-2">
+                              <Badge variant={submission.status === 'Active' ? 'default' : 'secondary'}>
+                                {submission.status}
+                              </Badge>
+                              <Button variant="outline" size="sm">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteSubmission(submission.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex space-x-2">
-                            <Badge variant={submission.status === 'Active' ? 'default' : 'secondary'}>
-                              {submission.status}
-                            </Badge>
-                            <Button variant="outline" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteSubmission(submission.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                          
+                          <div className="grid md:grid-cols-3 gap-4 mb-4">
+                            <div>
+                              <p className="text-sm text-gray-600">Quantity</p>
+                              <p className="font-semibold">{submission.quantity} KG</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Desired Price</p>
+                              <p className="font-semibold text-green-600">₹{submission.desired_price}/kg</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Total Value</p>
+                              <p className="font-semibold">₹{(submission.quantity * submission.desired_price).toFixed(2)}</p>
+                            </div>
                           </div>
-                        </div>
-                        
-                        <div className="grid md:grid-cols-3 gap-4 mb-4">
-                          <div>
-                            <p className="text-sm text-gray-600">Quantity</p>
-                            <p className="font-semibold">{submission.quantity} KG</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-600">Desired Price</p>
-                            <p className="font-semibold text-green-600">₹{submission.desiredPrice}/kg</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-600">Total Value</p>
-                            <p className="font-semibold">₹{submission.quantity * submission.desiredPrice}</p>
-                          </div>
-                        </div>
-                        
-                        {submission.notes && (
-                          <div>
-                            <p className="text-sm text-gray-600 mb-1">Notes</p>
-                            <p className="text-gray-800">{submission.notes}</p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
+                          
+                          {submission.notes && (
+                            <div>
+                              <p className="text-sm text-gray-600 mb-1">Notes</p>
+                              <p className="text-gray-800">{submission.notes}</p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -333,18 +439,22 @@ const FarmerDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {marketPrices.map((item, index) => (
-                    <Card key={index} className="border border-green-100">
-                      <CardContent className="pt-6">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-2">{item.cropName}</h3>
-                        <div className="text-2xl font-bold text-green-600 mb-2">₹{item.price}/kg</div>
-                        <div className="text-sm text-gray-600">
-                          <p>{item.market}</p>
-                          <p>{item.date}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  {marketPrices.length === 0 ? (
+                    <p className="text-gray-500 col-span-full text-center py-8">No market prices available yet.</p>
+                  ) : (
+                    marketPrices.map((item) => (
+                      <Card key={item.id} className="border border-green-100">
+                        <CardContent className="pt-6">
+                          <h3 className="text-lg font-semibold text-gray-800 mb-2">{item.crop_name}</h3>
+                          <div className="text-2xl font-bold text-green-600 mb-2">₹{item.current_price}/kg</div>
+                          <div className="text-sm text-gray-600">
+                            <p>{item.market_location}</p>
+                            <p>{new Date(item.price_date).toLocaleDateString()}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>

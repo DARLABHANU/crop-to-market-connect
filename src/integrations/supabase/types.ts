@@ -9,7 +9,108 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      crop_submissions: {
+        Row: {
+          created_at: string
+          crop_name: string
+          desired_price: number
+          farmer_id: string
+          id: string
+          notes: string | null
+          quantity: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          crop_name: string
+          desired_price: number
+          farmer_id: string
+          id?: string
+          notes?: string | null
+          quantity: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          crop_name?: string
+          desired_price?: number
+          farmer_id?: string
+          id?: string
+          notes?: string | null
+          quantity?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      market_prices: {
+        Row: {
+          created_at: string
+          crop_name: string
+          current_price: number
+          id: string
+          market_location: string
+          marketer_id: string
+          notes: string | null
+          price_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          crop_name: string
+          current_price: number
+          id?: string
+          market_location: string
+          marketer_id: string
+          notes?: string | null
+          price_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          crop_name?: string
+          current_price?: number
+          id?: string
+          market_location?: string
+          marketer_id?: string
+          notes?: string | null
+          price_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          mobile: string
+          name: string
+          updated_at: string
+          user_id: string
+          user_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mobile: string
+          name: string
+          updated_at?: string
+          user_id: string
+          user_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mobile?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+          user_type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

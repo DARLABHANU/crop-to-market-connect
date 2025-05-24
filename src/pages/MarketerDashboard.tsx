@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,21 +9,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Leaf, Search, Plus, Eye, Phone, User, LogOut, Filter } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const MarketerDashboard = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [priceFilter, setPriceFilter] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Mock marketer data
-  const marketerData = {
-    name: "Priya Sharma",
-    mobile: "+91 9876543210",
-    email: "priya@example.com"
-  };
+  // User and data state
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [farmerCrops, setFarmerCrops] = useState<any[]>([]);
+  const [marketSubmissions, setMarketSubmissions] = useState<any[]>([]);
 
   // Form state for market price submission
   const [priceData, setPriceData] = useState({
@@ -35,104 +36,131 @@ const MarketerDashboard = () => {
     notes: ''
   });
 
-  // Mock farmer crop submissions
-  const [farmerCrops] = useState([
-    {
-      id: 1,
-      cropName: "Tomatoes",
-      quantity: 500,
-      desiredPrice: 45,
-      farmerName: "Rajesh Kumar",
-      farmerMobile: "+91 9876543210",
-      submissionDate: "2024-05-24",
-      notes: "Fresh organic tomatoes, harvested yesterday",
-      status: "Active"
-    },
-    {
-      id: 2,
-      cropName: "Onions",
-      quantity: 200,
-      desiredPrice: 35,
-      farmerName: "Suresh Patel",
-      farmerMobile: "+91 9876543211",
-      submissionDate: "2024-05-23",
-      notes: "Premium quality red onions",
-      status: "Active"
-    },
-    {
-      id: 3,
-      cropName: "Wheat",
-      quantity: 1000,
-      desiredPrice: 28,
-      farmerName: "Arun Singh",
-      farmerMobile: "+91 9876543212",
-      submissionDate: "2024-05-23",
-      notes: "High quality wheat, pesticide-free",
-      status: "Active"
-    },
-    {
-      id: 4,
-      cropName: "Rice",
-      quantity: 800,
-      desiredPrice: 55,
-      farmerName: "Mohan Reddy",
-      farmerMobile: "+91 9876543213",
-      submissionDate: "2024-05-22",
-      notes: "Basmati rice, premium grade",
-      status: "Active"
-    }
-  ]);
-
-  // Mock market price submissions
-  const [marketSubmissions, setMarketSubmissions] = useState([
-    {
-      id: 1,
-      marketLocation: "Central Market",
-      cropName: "Tomatoes",
-      currentPrice: 45,
-      priceDate: "2024-05-24",
-      submissionDate: "2024-05-24",
-      notes: "High demand, good quality available"
-    },
-    {
-      id: 2,
-      marketLocation: "Farmers Plaza",
-      cropName: "Onions",
-      currentPrice: 35,
-      priceDate: "2024-05-24",
-      submissionDate: "2024-05-24",
-      notes: "Steady prices, good supply"
-    }
-  ]);
-
   const cropOptions = [
     "Tomatoes", "Onions", "Wheat", "Rice", "Potatoes", "Corn", "Carrots", "Cabbage", "Other"
   ];
 
-  // Filter farmer crops based on search and price
+  useEffect(() => {
+    checkAuth();
+    fetchData();
+  }, []);
+
+  const checkAuth = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      navigate('/auth');
+      return;
+    }
+
+    // Fetch user profile
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching profile:', error);
+      toast({
+        title: "Error",
+        description: "Could not fetch user profile",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (profile.user_type !== 'marketer') {
+      navigate('/farmer-dashboard');
+      return;
+    }
+
+    setUserProfile(profile);
+  };
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Fetch all farmer crop submissions with farmer profiles
+      const { data: cropsData, error: cropsError } = await supabase
+        .from('crop_submissions')
+        .select(`
+          *,
+          profiles!inner(name, mobile)
+        `)
+        .eq('status', 'Active')
+        .order('created_at', { ascending: false });
+
+      if (cropsError) {
+        console.error('Error fetching farmer crops:', cropsError);
+      } else {
+        setFarmerCrops(cropsData || []);
+      }
+
+      // Fetch marketer's own submissions
+      const { data: submissionsData, error: submissionsError } = await supabase
+        .from('market_prices')
+        .select('*')
+        .eq('marketer_id', session.user.id)
+        .order('created_at', { ascending: false });
+
+      if (submissionsError) {
+        console.error('Error fetching submissions:', submissionsError);
+      } else {
+        setMarketSubmissions(submissionsData || []);
+      }
+
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const filteredCrops = farmerCrops.filter(crop => {
-    const matchesSearch = crop.cropName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         crop.farmerName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesPrice = !priceFilter || crop.desiredPrice <= parseInt(priceFilter);
+    const matchesSearch = crop.crop_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         crop.profiles?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesPrice = !priceFilter || crop.desired_price <= parseInt(priceFilter);
     return matchesSearch && matchesPrice;
   });
 
-  const handlePriceSubmit = (e: React.FormEvent) => {
+  const handlePriceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      navigate('/auth');
+      return;
+    }
+
     const finalCropName = priceData.cropName === 'Other' ? priceData.customCrop : priceData.cropName;
     
-    const newSubmission = {
-      id: marketSubmissions.length + 1,
-      marketLocation: priceData.marketLocation,
-      cropName: finalCropName,
-      currentPrice: parseInt(priceData.currentPrice),
-      priceDate: priceData.priceDate,
-      submissionDate: new Date().toISOString().split('T')[0],
-      notes: priceData.notes
-    };
+    const { data, error } = await supabase
+      .from('market_prices')
+      .insert([
+        {
+          marketer_id: session.user.id,
+          market_location: priceData.marketLocation,
+          crop_name: finalCropName,
+          current_price: parseFloat(priceData.currentPrice),
+          price_date: priceData.priceDate,
+          notes: priceData.notes
+        }
+      ]);
 
-    setMarketSubmissions([newSubmission, ...marketSubmissions]);
+    if (error) {
+      console.error('Error submitting price:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit market price",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setPriceData({
       marketLocation: '',
       cropName: '',
@@ -146,14 +174,33 @@ const MarketerDashboard = () => {
       title: "Market Price Submitted",
       description: `Price for ${finalCropName} has been updated successfully.`,
     });
+
+    // Refresh data
+    fetchData();
   };
 
   const handleConnectFarmer = (farmer: any) => {
     toast({
       title: "Contact Information",
-      description: `You can reach ${farmer.farmerName} at ${farmer.farmerMobile}`,
+      description: `You can reach ${farmer.profiles?.name} at ${farmer.profiles?.mobile}`,
     });
   };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/auth');
+  };
+
+  if (isLoading || !userProfile) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Leaf className="h-8 w-8 text-green-600 animate-spin mx-auto mb-4" />
+          <p>Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -176,22 +223,22 @@ const MarketerDashboard = () => {
                   className="flex items-center space-x-2"
                 >
                   <User className="h-5 w-5" />
-                  <span>{marketerData.name}</span>
+                  <span>{userProfile.name}</span>
                 </Button>
                 
                 {showProfileMenu && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
                     <div className="py-1">
                       <div className="px-4 py-2 text-sm text-gray-700 border-b">
-                        Welcome, {marketerData.name}!
+                        Welcome, {userProfile.name}!
                       </div>
-                      <Link
-                        to="/auth"
-                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      <button
+                        onClick={handleLogout}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       >
                         <LogOut className="h-4 w-4 mr-2" />
                         Logout
-                      </Link>
+                      </button>
                     </div>
                   </div>
                 )}
@@ -255,60 +302,64 @@ const MarketerDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {filteredCrops.map((crop) => (
-                    <Card key={crop.id} className="border border-green-100 hover:shadow-lg transition-shadow">
-                      <CardContent className="pt-6">
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <h3 className="text-xl font-bold text-gray-800">{crop.cropName}</h3>
-                            <p className="text-gray-600">Available: {crop.quantity} KG</p>
+                  {filteredCrops.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">No farmer crops available at the moment.</p>
+                  ) : (
+                    filteredCrops.map((crop) => (
+                      <Card key={crop.id} className="border border-green-100 hover:shadow-lg transition-shadow">
+                        <CardContent className="pt-6">
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <h3 className="text-xl font-bold text-gray-800">{crop.crop_name}</h3>
+                              <p className="text-gray-600">Available: {crop.quantity} KG</p>
+                            </div>
+                            <Badge variant="default" className="bg-green-100 text-green-800">
+                              {crop.status}
+                            </Badge>
                           </div>
-                          <Badge variant="default" className="bg-green-100 text-green-800">
-                            {crop.status}
-                          </Badge>
-                        </div>
-                        
-                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                          <div>
-                            <p className="text-sm text-gray-600">Farmer</p>
-                            <p className="font-semibold">{crop.farmerName}</p>
+                          
+                          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                            <div>
+                              <p className="text-sm text-gray-600">Farmer</p>
+                              <p className="font-semibold">{crop.profiles?.name || 'Unknown'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Desired Price</p>
+                              <p className="font-semibold text-green-600 text-lg">₹{crop.desired_price}/kg</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Total Value</p>
+                              <p className="font-semibold">₹{(crop.quantity * crop.desired_price).toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Submitted</p>
+                              <p className="font-semibold">{new Date(crop.created_at).toLocaleDateString()}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm text-gray-600">Desired Price</p>
-                            <p className="font-semibold text-green-600 text-lg">₹{crop.desiredPrice}/kg</p>
+                          
+                          {crop.notes && (
+                            <div className="mb-4">
+                              <p className="text-sm text-gray-600 mb-1">Notes</p>
+                              <p className="text-gray-800">{crop.notes}</p>
+                            </div>
+                          )}
+                          
+                          <div className="flex space-x-3">
+                            <Button 
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => handleConnectFarmer(crop)}
+                            >
+                              <Phone className="h-4 w-4 mr-2" />
+                              Contact Farmer
+                            </Button>
+                            <Button variant="outline">
+                              View Details
+                            </Button>
                           </div>
-                          <div>
-                            <p className="text-sm text-gray-600">Total Value</p>
-                            <p className="font-semibold">₹{crop.quantity * crop.desiredPrice}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-600">Submitted</p>
-                            <p className="font-semibold">{crop.submissionDate}</p>
-                          </div>
-                        </div>
-                        
-                        {crop.notes && (
-                          <div className="mb-4">
-                            <p className="text-sm text-gray-600 mb-1">Notes</p>
-                            <p className="text-gray-800">{crop.notes}</p>
-                          </div>
-                        )}
-                        
-                        <div className="flex space-x-3">
-                          <Button 
-                            className="bg-green-600 hover:bg-green-700"
-                            onClick={() => handleConnectFarmer(crop)}
-                          >
-                            <Phone className="h-4 w-4 mr-2" />
-                            Contact Farmer
-                          </Button>
-                          <Button variant="outline">
-                            View Details
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -324,7 +375,7 @@ const MarketerDashboard = () => {
                 <form onSubmit={handlePriceSubmit} className="space-y-6">
                   <div className="space-y-2">
                     <Label>Marketer Name</Label>
-                    <Input value={marketerData.name} disabled className="bg-gray-50" />
+                    <Input value={userProfile.name} disabled className="bg-gray-50" />
                   </div>
 
                   <div className="grid md:grid-cols-2 gap-6">
@@ -385,6 +436,7 @@ const MarketerDashboard = () => {
                     <Input
                       id="current-price"
                       type="number"
+                      step="0.01"
                       value={priceData.currentPrice}
                       onChange={(e) => setPriceData({...priceData, currentPrice: e.target.value})}
                       placeholder="Enter price in ₹"
@@ -419,33 +471,37 @@ const MarketerDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {marketSubmissions.map((submission) => (
-                    <Card key={submission.id} className="border border-green-100">
-                      <CardContent className="pt-6">
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-800">{submission.cropName}</h3>
-                            <p className="text-gray-600">{submission.marketLocation}</p>
+                  {marketSubmissions.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">No market price submissions yet.</p>
+                  ) : (
+                    marketSubmissions.map((submission) => (
+                      <Card key={submission.id} className="border border-green-100">
+                        <CardContent className="pt-6">
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <h3 className="text-lg font-semibold text-gray-800">{submission.crop_name}</h3>
+                              <p className="text-gray-600">{submission.market_location}</p>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-2xl font-bold text-green-600">₹{submission.current_price}/kg</div>
+                              <p className="text-sm text-gray-600">Price Date: {new Date(submission.price_date).toLocaleDateString()}</p>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-2xl font-bold text-green-600">₹{submission.currentPrice}/kg</div>
-                            <p className="text-sm text-gray-600">Price Date: {submission.priceDate}</p>
+                          
+                          <div className="mb-4">
+                            <p className="text-sm text-gray-600">Submitted on {new Date(submission.created_at).toLocaleDateString()}</p>
                           </div>
-                        </div>
-                        
-                        <div className="mb-4">
-                          <p className="text-sm text-gray-600">Submitted on {submission.submissionDate}</p>
-                        </div>
-                        
-                        {submission.notes && (
-                          <div>
-                            <p className="text-sm text-gray-600 mb-1">Notes</p>
-                            <p className="text-gray-800">{submission.notes}</p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
+                          
+                          {submission.notes && (
+                            <div>
+                              <p className="text-sm text-gray-600 mb-1">Notes</p>
+                              <p className="text-gray-800">{submission.notes}</p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>

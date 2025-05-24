@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Leaf, Eye, EyeOff } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -46,25 +47,50 @@ const Auth = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      // Mock authentication logic
-      const mockUser = { userType: 'farmer', name: 'John Doe' };
-      
-      toast({
-        title: "Login Successful",
-        description: "Welcome back to Climate Crop!",
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginData.email,
+        password: loginData.password,
       });
 
-      // Redirect based on user type
-      if (mockUser.userType === 'farmer') {
-        navigate('/farmer-dashboard');
-      } else {
-        navigate('/marketer-dashboard');
+      if (error) {
+        throw error;
       }
-      
+
+      if (data.user) {
+        // Get user profile to determine user type
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('user_type')
+          .eq('user_id', data.user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Profile fetch error:', profileError);
+          throw new Error('Could not fetch user profile');
+        }
+
+        toast({
+          title: "Login Successful",
+          description: "Welcome back to Climate Crop!",
+        });
+
+        // Redirect based on user type
+        if (profile.user_type === 'farmer') {
+          navigate('/farmer-dashboard');
+        } else {
+          navigate('/marketer-dashboard');
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: "Login Failed",
+        description: error.message || "An error occurred during login",
+        variant: "destructive"
+      });
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -81,19 +107,51 @@ const Auth = () => {
 
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      toast({
-        title: "Registration Successful",
-        description: "Welcome to Climate Crop! Please login to continue.",
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: signupData.email,
+        password: signupData.password,
+        options: {
+          data: {
+            name: signupData.name,
+            mobile: signupData.mobile,
+            user_type: signupData.userType,
+          }
+        }
       });
 
-      // Redirect to login tab
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Registration Successful",
+        description: "Please check your email to confirm your account, then login.",
+      });
+
+      // Reset form and switch to login tab
+      setSignupData({
+        name: '',
+        email: '',
+        mobile: '',
+        password: '',
+        confirmPassword: '',
+        userType: userType || 'farmer'
+      });
+      
+      // Switch to login tab
       const loginTab = document.querySelector('[value="login"]') as HTMLElement;
       loginTab?.click();
       
+    } catch (error: any) {
+      toast({
+        title: "Registration Failed",
+        description: error.message || "An error occurred during registration",
+        variant: "destructive"
+      });
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (
