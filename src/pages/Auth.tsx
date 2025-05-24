@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -108,10 +107,12 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
+      // Sign up the user without email confirmation
       const { data, error } = await supabase.auth.signUp({
         email: signupData.email,
         password: signupData.password,
         options: {
+          emailRedirectTo: undefined, // Disable email confirmation
           data: {
             name: signupData.name,
             mobile: signupData.mobile,
@@ -124,24 +125,32 @@ const Auth = () => {
         throw error;
       }
 
-      toast({
-        title: "Registration Successful",
-        description: "Please check your email to confirm your account, then login.",
-      });
+      if (data.user) {
+        toast({
+          title: "Registration Successful",
+          description: "Account created successfully! You can now login.",
+        });
 
-      // Reset form and switch to login tab
-      setSignupData({
-        name: '',
-        email: '',
-        mobile: '',
-        password: '',
-        confirmPassword: '',
-        userType: userType || 'farmer'
-      });
-      
-      // Switch to login tab
-      const loginTab = document.querySelector('[value="login"]') as HTMLElement;
-      loginTab?.click();
+        // Reset form and switch to login tab
+        setSignupData({
+          name: '',
+          email: '',
+          mobile: '',
+          password: '',
+          confirmPassword: '',
+          userType: userType || 'farmer'
+        });
+        
+        // Set login email to the registered email
+        setLoginData({
+          email: signupData.email,
+          password: ''
+        });
+        
+        // Switch to login tab
+        const loginTab = document.querySelector('[value="login"]') as HTMLElement;
+        loginTab?.click();
+      }
       
     } catch (error: any) {
       toast({
@@ -211,12 +220,6 @@ const Auth = () => {
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-                  </div>
-
-                  <div className="text-right">
-                    <a href="#" className="text-sm text-green-600 hover:text-green-700">
-                      Forgot Password?
-                    </a>
                   </div>
 
                   <Button type="submit" className="w-full bg-green-600 hover:bg-green-700" disabled={isLoading}>
