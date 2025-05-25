@@ -204,9 +204,16 @@ const MarketerDashboard = () => {
   };
 
   const handleConnectFarmer = (farmer: any) => {
+    console.log('Connecting to farmer:', farmer);
+    
+    // Ensure we have the farmer information
+    const farmerName = farmer.farmer_name || 'Unknown Farmer';
+    const farmerMobile = farmer.farmer_mobile || 'Mobile not available';
+    
     toast({
       title: "Contact Information",
-      description: `You can reach ${farmer.farmer_name} at ${farmer.farmer_mobile}`,
+      description: `Farmer: ${farmerName} | Mobile: ${farmerMobile}`,
+      duration: 5000,
     });
   };
 
@@ -375,9 +382,6 @@ const MarketerDashboard = () => {
                             >
                               <Phone className="h-4 w-4 mr-2" />
                               Contact Farmer
-                            </Button>
-                            <Button variant="outline">
-                              View Details
                             </Button>
                           </div>
                         </CardContent>
