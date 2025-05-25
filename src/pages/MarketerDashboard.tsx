@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,7 +83,7 @@ const MarketerDashboard = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      // Fetch all farmer crop submissions first
+      // Fetch all farmer crop submissions
       const { data: cropsData, error: cropsError } = await supabase
         .from('crop_submissions')
         .select('*')
@@ -95,33 +94,33 @@ const MarketerDashboard = () => {
         console.error('Error fetching farmer crops:', cropsError);
         setFarmerCrops([]);
       } else {
-        // Now fetch farmer profiles separately and merge the data
-        const farmerIds = [...new Set(cropsData?.map(crop => crop.farmer_id) || [])];
-        
-        if (farmerIds.length > 0) {
-          const { data: profilesData, error: profilesError } = await supabase
-            .from('profiles')
-            .select('user_id, name, mobile')
-            .in('user_id', farmerIds);
+        // Fetch ALL farmer profiles
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('user_id, name, mobile')
+          .eq('user_type', 'farmer');
 
-          if (profilesError) {
-            console.error('Error fetching farmer profiles:', profilesError);
-          }
-
-          // Merge crop data with farmer profiles
-          const enrichedCrops = cropsData?.map(crop => {
-            const farmerProfile = profilesData?.find(profile => profile.user_id === crop.farmer_id);
-            return {
-              ...crop,
-              farmer_name: farmerProfile?.name || 'Unknown',
-              farmer_mobile: farmerProfile?.mobile || 'N/A'
-            };
-          }) || [];
-
-          setFarmerCrops(enrichedCrops);
-        } else {
-          setFarmerCrops([]);
+        if (profilesError) {
+          console.error('Error fetching farmer profiles:', profilesError);
         }
+
+        console.log('Crops data:', cropsData);
+        console.log('Profiles data:', profilesData);
+
+        // Merge crop data with farmer profiles
+        const enrichedCrops = cropsData?.map(crop => {
+          const farmerProfile = profilesData?.find(profile => profile.user_id === crop.farmer_id);
+          console.log(`Matching farmer_id ${crop.farmer_id} with profile:`, farmerProfile);
+          
+          return {
+            ...crop,
+            farmer_name: farmerProfile?.name || 'Unknown Farmer',
+            farmer_mobile: farmerProfile?.mobile || 'Mobile not available'
+          };
+        }) || [];
+
+        console.log('Enriched crops:', enrichedCrops);
+        setFarmerCrops(enrichedCrops);
       }
 
       // Fetch marketer's own submissions
