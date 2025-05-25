@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -94,10 +95,17 @@ const MarketerDashboard = () => {
         console.error('Error fetching farmer crops:', cropsError);
         setFarmerCrops([]);
       } else {
-        // Fetch ALL farmer profiles
+        // Fetch ALL profiles first (without any filter to see what's in the database)
+        const { data: allProfiles, error: allProfilesError } = await supabase
+          .from('profiles')
+          .select('*');
+
+        console.log('All profiles in database:', allProfiles);
+
+        // Now fetch farmer profiles specifically
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
-          .select('user_id, name, mobile')
+          .select('user_id, name, mobile, user_type')
           .eq('user_type', 'farmer');
 
         if (profilesError) {
@@ -105,7 +113,11 @@ const MarketerDashboard = () => {
         }
 
         console.log('Crops data:', cropsData);
-        console.log('Profiles data:', profilesData);
+        console.log('Farmer profiles data:', profilesData);
+
+        // Get unique farmer IDs from crops
+        const farmerIds = [...new Set(cropsData?.map(crop => crop.farmer_id) || [])];
+        console.log('Unique farmer IDs from crops:', farmerIds);
 
         // Merge crop data with farmer profiles
         const enrichedCrops = cropsData?.map(crop => {
