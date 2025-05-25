@@ -84,20 +84,44 @@ const MarketerDashboard = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      // Fetch all farmer crop submissions with farmer profiles
+      // Fetch all farmer crop submissions first
       const { data: cropsData, error: cropsError } = await supabase
         .from('crop_submissions')
-        .select(`
-          *,
-          profiles!inner(name, mobile)
-        `)
+        .select('*')
         .eq('status', 'Active')
         .order('created_at', { ascending: false });
 
       if (cropsError) {
         console.error('Error fetching farmer crops:', cropsError);
+        setFarmerCrops([]);
       } else {
-        setFarmerCrops(cropsData || []);
+        // Now fetch farmer profiles separately and merge the data
+        const farmerIds = [...new Set(cropsData?.map(crop => crop.farmer_id) || [])];
+        
+        if (farmerIds.length > 0) {
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('user_id, name, mobile')
+            .in('user_id', farmerIds);
+
+          if (profilesError) {
+            console.error('Error fetching farmer profiles:', profilesError);
+          }
+
+          // Merge crop data with farmer profiles
+          const enrichedCrops = cropsData?.map(crop => {
+            const farmerProfile = profilesData?.find(profile => profile.user_id === crop.farmer_id);
+            return {
+              ...crop,
+              farmer_name: farmerProfile?.name || 'Unknown',
+              farmer_mobile: farmerProfile?.mobile || 'N/A'
+            };
+          }) || [];
+
+          setFarmerCrops(enrichedCrops);
+        } else {
+          setFarmerCrops([]);
+        }
       }
 
       // Fetch marketer's own submissions
@@ -122,7 +146,7 @@ const MarketerDashboard = () => {
 
   const filteredCrops = farmerCrops.filter(crop => {
     const matchesSearch = crop.crop_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         crop.profiles?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+                         crop.farmer_name?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesPrice = !priceFilter || crop.desired_price <= parseInt(priceFilter);
     return matchesSearch && matchesPrice;
   });
@@ -182,7 +206,7 @@ const MarketerDashboard = () => {
   const handleConnectFarmer = (farmer: any) => {
     toast({
       title: "Contact Information",
-      description: `You can reach ${farmer.profiles?.name} at ${farmer.profiles?.mobile}`,
+      description: `You can reach ${farmer.farmer_name} at ${farmer.farmer_mobile}`,
     });
   };
 
@@ -321,7 +345,7 @@ const MarketerDashboard = () => {
                           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                             <div>
                               <p className="text-sm text-gray-600">Farmer</p>
-                              <p className="font-semibold">{crop.profiles?.name || 'Unknown'}</p>
+                              <p className="font-semibold">{crop.farmer_name}</p>
                             </div>
                             <div>
                               <p className="text-sm text-gray-600">Desired Price</p>
