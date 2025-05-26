@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,7 +48,7 @@ const Index = () => {
               <a href="#about" className="text-gray-600 hover:text-green-600 transition-colors">About Us</a>
               <a href="#how-it-works" className="text-gray-600 hover:text-green-600 transition-colors">How It Works</a>
               <a href="#market-prices" className="text-gray-600 hover:text-green-600 transition-colors">Market Prices</a>
-              <a href="#contact" className="text-gray-600 hover:text-green-600 transition-colors">Contact</a>
+              <Link to="/contact" className="text-gray-600 hover:text-green-600 transition-colors">Contact</Link>
             </div>
             
             <Link to="/auth">
