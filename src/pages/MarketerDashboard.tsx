@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Leaf, Search, Plus, Eye, Phone, User, LogOut, Filter } from "lucide-react";
+import { Leaf, Search, Plus, Eye, User, LogOut, Filter } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -94,38 +95,7 @@ const MarketerDashboard = () => {
         console.error('Error fetching farmer crops:', cropsError);
         setFarmerCrops([]);
       } else {
-        console.log('Crops data:', cropsData);
-
-        // Get unique farmer IDs from crops
-        const farmerIds = [...new Set(cropsData?.map(crop => crop.farmer_id) || [])];
-        console.log('Unique farmer IDs from crops:', farmerIds);
-
-        // Fetch farmer profiles for these specific IDs
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
-          .select('user_id, name, mobile, user_type')
-          .in('user_id', farmerIds);
-
-        if (profilesError) {
-          console.error('Error fetching farmer profiles:', profilesError);
-        } else {
-          console.log('Farmer profiles data for specific IDs:', profilesData);
-        }
-
-        // Merge crop data with farmer profiles
-        const enrichedCrops = cropsData?.map(crop => {
-          const farmerProfile = profilesData?.find(profile => profile.user_id === crop.farmer_id);
-          console.log(`Matching farmer_id ${crop.farmer_id} with profile:`, farmerProfile);
-          
-          return {
-            ...crop,
-            farmer_name: farmerProfile?.name || 'Unknown Farmer',
-            farmer_mobile: farmerProfile?.mobile || 'Mobile not available'
-          };
-        }) || [];
-
-        console.log('Enriched crops with farmer details:', enrichedCrops);
-        setFarmerCrops(enrichedCrops);
+        setFarmerCrops(cropsData || []);
       }
 
       // Fetch marketer's own submissions
@@ -149,8 +119,7 @@ const MarketerDashboard = () => {
   };
 
   const filteredCrops = farmerCrops.filter(crop => {
-    const matchesSearch = crop.crop_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         crop.farmer_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = crop.crop_name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesPrice = !priceFilter || crop.desired_price <= parseInt(priceFilter);
     return matchesSearch && matchesPrice;
   });
@@ -207,20 +176,6 @@ const MarketerDashboard = () => {
     fetchData();
   };
 
-  const handleConnectFarmer = (farmer: any) => {
-    console.log('Connecting to farmer:', farmer);
-    
-    // Ensure we have the farmer information
-    const farmerName = farmer.farmer_name || 'Unknown Farmer';
-    const farmerMobile = farmer.farmer_mobile || 'Mobile not available';
-    
-    toast({
-      title: "Farmer Contact Details",
-      description: `Name: ${farmerName} | Mobile: ${farmerMobile}`,
-      duration: 7000,
-    });
-  };
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/auth');
@@ -250,6 +205,7 @@ const MarketerDashboard = () => {
             
             <div className="flex items-center space-x-4">
               <Link to="/" className="text-gray-600 hover:text-green-600">View Market Prices</Link>
+              <Link to="/contact" className="text-gray-600 hover:text-green-600">Contact</Link>
               
               <div className="relative">
                 <Button
@@ -286,7 +242,7 @@ const MarketerDashboard = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Marketer Dashboard</h1>
-          <p className="text-gray-600">Connect with farmers and manage market prices</p>
+          <p className="text-gray-600">Browse farmer crops and manage market prices</p>
         </div>
 
         <Tabs defaultValue="farmer-crops" className="space-y-6">
@@ -315,7 +271,7 @@ const MarketerDashboard = () => {
                 <div className="flex flex-col sm:flex-row gap-4 mt-4">
                   <div className="flex-1">
                     <Input
-                      placeholder="Search by crop name or farmer..."
+                      placeholder="Search by crop name..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="w-full"
@@ -353,11 +309,7 @@ const MarketerDashboard = () => {
                             </Badge>
                           </div>
                           
-                          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                            <div>
-                              <p className="text-sm text-gray-600">Farmer</p>
-                              <p className="font-semibold">{crop.farmer_name}</p>
-                            </div>
+                          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                             <div>
                               <p className="text-sm text-gray-600">Desired Price</p>
                               <p className="font-semibold text-green-600 text-lg">₹{crop.desired_price}/kg</p>
@@ -378,16 +330,6 @@ const MarketerDashboard = () => {
                               <p className="text-gray-800">{crop.notes}</p>
                             </div>
                           )}
-                          
-                          <div className="flex space-x-3">
-                            <Button 
-                              className="bg-green-600 hover:bg-green-700"
-                              onClick={() => handleConnectFarmer(crop)}
-                            >
-                              <Phone className="h-4 w-4 mr-2" />
-                              Contact Farmer
-                            </Button>
-                          </div>
                         </CardContent>
                       </Card>
                     ))
