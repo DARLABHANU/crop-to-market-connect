@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -95,29 +94,23 @@ const MarketerDashboard = () => {
         console.error('Error fetching farmer crops:', cropsError);
         setFarmerCrops([]);
       } else {
-        // Fetch ALL profiles first (without any filter to see what's in the database)
-        const { data: allProfiles, error: allProfilesError } = await supabase
-          .from('profiles')
-          .select('*');
-
-        console.log('All profiles in database:', allProfiles);
-
-        // Now fetch farmer profiles specifically
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
-          .select('user_id, name, mobile, user_type')
-          .eq('user_type', 'farmer');
-
-        if (profilesError) {
-          console.error('Error fetching farmer profiles:', profilesError);
-        }
-
         console.log('Crops data:', cropsData);
-        console.log('Farmer profiles data:', profilesData);
 
         // Get unique farmer IDs from crops
         const farmerIds = [...new Set(cropsData?.map(crop => crop.farmer_id) || [])];
         console.log('Unique farmer IDs from crops:', farmerIds);
+
+        // Fetch farmer profiles for these specific IDs
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('user_id, name, mobile, user_type')
+          .in('user_id', farmerIds);
+
+        if (profilesError) {
+          console.error('Error fetching farmer profiles:', profilesError);
+        } else {
+          console.log('Farmer profiles data for specific IDs:', profilesData);
+        }
 
         // Merge crop data with farmer profiles
         const enrichedCrops = cropsData?.map(crop => {
@@ -131,7 +124,7 @@ const MarketerDashboard = () => {
           };
         }) || [];
 
-        console.log('Enriched crops:', enrichedCrops);
+        console.log('Enriched crops with farmer details:', enrichedCrops);
         setFarmerCrops(enrichedCrops);
       }
 
@@ -222,9 +215,9 @@ const MarketerDashboard = () => {
     const farmerMobile = farmer.farmer_mobile || 'Mobile not available';
     
     toast({
-      title: "Contact Information",
-      description: `Farmer: ${farmerName} | Mobile: ${farmerMobile}`,
-      duration: 5000,
+      title: "Farmer Contact Details",
+      description: `Name: ${farmerName} | Mobile: ${farmerMobile}`,
+      duration: 7000,
     });
   };
 

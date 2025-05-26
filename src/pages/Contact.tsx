@@ -20,6 +20,12 @@ const Contact = () => {
     }
   ];
 
+  const handleEmailClick = (email: string, name: string) => {
+    const subject = encodeURIComponent("Climate Crop Inquiry");
+    const body = encodeURIComponent(`Hello ${name},\n\nI hope this email finds you well. I am reaching out regarding Climate Crop.\n\nBest regards`);
+    window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100">
       {/* Navigation */}
@@ -85,13 +91,13 @@ const Contact = () => {
                   </div>
                   <h3 className="text-xl font-semibold text-gray-800 mb-2">{developer.name}</h3>
                   <p className="text-gray-600 mb-4">Developer</p>
-                  <a 
-                    href={`mailto:${developer.email}`}
-                    className="inline-flex items-center space-x-2 text-green-600 hover:text-green-700 transition-colors"
+                  <button 
+                    onClick={() => handleEmailClick(developer.email, developer.name)}
+                    className="inline-flex items-center space-x-2 text-green-600 hover:text-green-700 transition-colors cursor-pointer"
                   >
                     <Mail className="h-4 w-4" />
                     <span className="text-sm">{developer.email}</span>
-                  </a>
+                  </button>
                 </CardContent>
               </Card>
             ))}
@@ -108,12 +114,13 @@ const Contact = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="mailto:joshithaaguru@gmail.com,mouliniippili@gmail.com,kusumagothireddi@gmail.com?subject=Climate Crop Inquiry">
-              <Button size="lg" className="bg-green-600 hover:bg-green-700">
-                <Mail className="mr-2 h-5 w-5" />
-                Contact Team
-              </Button>
-            </a>
+            <button
+              onClick={() => handleEmailClick("joshithaaguru@gmail.com,mouliniippili@gmail.com,kusumagothireddi@gmail.com", "Team")}
+              className="inline-flex items-center justify-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors"
+            >
+              <Mail className="mr-2 h-5 w-5" />
+              Contact Team
+            </button>
             <Link to="/">
               <Button size="lg" variant="outline" className="border-green-600 text-green-600 hover:bg-green-50">
                 Back to Home
