@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Leaf, Plus, Eye, Edit, Trash2, User, LogOut } from "lucide-react";
+import { Leaf, Plus, Eye, Edit, Trash2, User, LogOut, Menu, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +16,7 @@ const FarmerDashboard = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
   // User and profile data
@@ -216,7 +216,8 @@ const FarmerDashboard = () => {
               <span className="text-2xl font-bold text-green-800">Climate Crop</span>
             </Link>
             
-            <div className="flex items-center space-x-4">
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-4">
               <Link to="/" className="text-gray-600 hover:text-green-600">View Market Prices</Link>
               
               <div className="relative">
@@ -247,7 +248,34 @@ const FarmerDashboard = () => {
                 )}
               </div>
             </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              className="md:hidden p-2"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
           </div>
+
+          {/* Mobile Navigation Menu */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden mt-4 pb-4 border-t border-green-100">
+              <div className="flex flex-col space-y-4 mt-4">
+                <Link to="/" className="text-gray-600 hover:text-green-600 py-2">View Market Prices</Link>
+                <div className="py-2 border-t border-gray-200">
+                  <p className="text-sm text-gray-700 mb-2">Welcome, {userProfile.name}!</p>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center text-gray-700 hover:text-red-600"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Logout
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 

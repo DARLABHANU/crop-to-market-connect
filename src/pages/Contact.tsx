@@ -1,10 +1,12 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Leaf, Mail, Users } from "lucide-react";
+import { Leaf, Mail, Users, Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useState } from "react";
 
 const Contact = () => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   const developers = [
     {
       name: "Joshitha",
@@ -37,6 +39,7 @@ const Contact = () => {
               <span className="text-2xl font-bold text-green-800">Climate Crop</span>
             </Link>
             
+            {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-6">
               <Link to="/" className="text-gray-600 hover:text-green-600 transition-colors">Home</Link>
               <a href="/#about" className="text-gray-600 hover:text-green-600 transition-colors">About Us</a>
@@ -45,12 +48,41 @@ const Contact = () => {
               <Link to="/contact" className="text-green-600 font-medium">Contact</Link>
             </div>
             
-            <Link to="/auth">
-              <Button className="bg-green-600 hover:bg-green-700">
-                Login / Sign Up
-              </Button>
-            </Link>
+            {/* Desktop Auth Button */}
+            <div className="hidden md:block">
+              <Link to="/auth">
+                <Button className="bg-green-600 hover:bg-green-700">
+                  Login / Sign Up
+                </Button>
+              </Link>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              className="md:hidden p-2"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
           </div>
+
+          {/* Mobile Navigation Menu */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden mt-4 pb-4 border-t border-green-100">
+              <div className="flex flex-col space-y-4 mt-4">
+                <Link to="/" className="text-gray-600 hover:text-green-600 transition-colors py-2">Home</Link>
+                <a href="/#about" className="text-gray-600 hover:text-green-600 transition-colors py-2">About Us</a>
+                <a href="/#how-it-works" className="text-gray-600 hover:text-green-600 transition-colors py-2">How It Works</a>
+                <a href="/#market-prices" className="text-gray-600 hover:text-green-600 transition-colors py-2">Market Prices</a>
+                <Link to="/contact" className="text-green-600 font-medium py-2">Contact</Link>
+                <Link to="/auth" className="pt-2">
+                  <Button className="bg-green-600 hover:bg-green-700 w-full">
+                    Login / Sign Up
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
