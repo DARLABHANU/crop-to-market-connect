@@ -309,7 +309,7 @@ const Index = () => {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-2 mb-4 md:mb-0">
               <Leaf className="h-6 w-6 text-green-600" />
-              <span className="text-lg font-bold text-green-800">Climate Crop</span>
+              <span className="text-lg font-bold text-green-800">Farm Direct</span>
             </div>
             
             <div className="flex space-x-6 text-sm text-gray-600">
@@ -320,7 +320,7 @@ const Index = () => {
           </div>
           
           <div className="text-center text-sm text-gray-500 mt-4">
-            <p>&copy; 2024 Climate Crop. All rights reserved. Building sustainable agricultural communities.</p>
+            <p>&copy; 2025 Farm Direct. All rights reserved. Building sustainable agricultural communities.</p>
           </div>
         </div>
       </footer>
