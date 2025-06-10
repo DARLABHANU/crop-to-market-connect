@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Leaf, Search, Plus, Eye, Phone, User, LogOut, Filter } from "lucide-react";
+import { Leaf, Search, Plus, Eye, User, LogOut, Filter, Menu, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +16,7 @@ const MarketerDashboard = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [priceFilter, setPriceFilter] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -84,18 +84,16 @@ const MarketerDashboard = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      // Fetch all farmer crop submissions with farmer profiles
+      // Fetch all farmer crop submissions
       const { data: cropsData, error: cropsError } = await supabase
         .from('crop_submissions')
-        .select(`
-          *,
-          profiles!inner(name, mobile)
-        `)
+        .select('*')
         .eq('status', 'Active')
         .order('created_at', { ascending: false });
 
       if (cropsError) {
         console.error('Error fetching farmer crops:', cropsError);
+        setFarmerCrops([]);
       } else {
         setFarmerCrops(cropsData || []);
       }
@@ -121,8 +119,7 @@ const MarketerDashboard = () => {
   };
 
   const filteredCrops = farmerCrops.filter(crop => {
-    const matchesSearch = crop.crop_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         crop.profiles?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = crop.crop_name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesPrice = !priceFilter || crop.desired_price <= parseInt(priceFilter);
     return matchesSearch && matchesPrice;
   });
@@ -179,13 +176,6 @@ const MarketerDashboard = () => {
     fetchData();
   };
 
-  const handleConnectFarmer = (farmer: any) => {
-    toast({
-      title: "Contact Information",
-      description: `You can reach ${farmer.profiles?.name} at ${farmer.profiles?.mobile}`,
-    });
-  };
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/auth');
@@ -213,8 +203,10 @@ const MarketerDashboard = () => {
               <span className="text-2xl font-bold text-green-800">Climate Crop</span>
             </Link>
             
-            <div className="flex items-center space-x-4">
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-4">
               <Link to="/" className="text-gray-600 hover:text-green-600">View Market Prices</Link>
+              <Link to="/contact" className="text-gray-600 hover:text-green-600">Contact</Link>
               
               <div className="relative">
                 <Button
@@ -244,14 +236,42 @@ const MarketerDashboard = () => {
                 )}
               </div>
             </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              className="md:hidden p-2"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
           </div>
+
+          {/* Mobile Navigation Menu */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden mt-4 pb-4 border-t border-green-100">
+              <div className="flex flex-col space-y-4 mt-4">
+                <Link to="/" className="text-gray-600 hover:text-green-600 py-2">View Market Prices</Link>
+                <Link to="/contact" className="text-gray-600 hover:text-green-600 py-2">Contact</Link>
+                <div className="py-2 border-t border-gray-200">
+                  <p className="text-sm text-gray-700 mb-2">Welcome, {userProfile.name}!</p>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center text-gray-700 hover:text-red-600"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Logout
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Marketer Dashboard</h1>
-          <p className="text-gray-600">Connect with farmers and manage market prices</p>
+          <p className="text-gray-600">Browse farmer crops and manage market prices</p>
         </div>
 
         <Tabs defaultValue="farmer-crops" className="space-y-6">
@@ -280,7 +300,7 @@ const MarketerDashboard = () => {
                 <div className="flex flex-col sm:flex-row gap-4 mt-4">
                   <div className="flex-1">
                     <Input
-                      placeholder="Search by crop name or farmer..."
+                      placeholder="Search by crop name..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="w-full"
@@ -318,11 +338,7 @@ const MarketerDashboard = () => {
                             </Badge>
                           </div>
                           
-                          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                            <div>
-                              <p className="text-sm text-gray-600">Farmer</p>
-                              <p className="font-semibold">{crop.profiles?.name || 'Unknown'}</p>
-                            </div>
+                          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                             <div>
                               <p className="text-sm text-gray-600">Desired Price</p>
                               <p className="font-semibold text-green-600 text-lg">₹{crop.desired_price}/kg</p>
@@ -343,19 +359,6 @@ const MarketerDashboard = () => {
                               <p className="text-gray-800">{crop.notes}</p>
                             </div>
                           )}
-                          
-                          <div className="flex space-x-3">
-                            <Button 
-                              className="bg-green-600 hover:bg-green-700"
-                              onClick={() => handleConnectFarmer(crop)}
-                            >
-                              <Phone className="h-4 w-4 mr-2" />
-                              Contact Farmer
-                            </Button>
-                            <Button variant="outline">
-                              View Details
-                            </Button>
-                          </div>
                         </CardContent>
                       </Card>
                     ))

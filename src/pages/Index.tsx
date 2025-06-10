@@ -1,14 +1,14 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Leaf, Users, TrendingUp, Shield, ArrowRight } from "lucide-react";
+import { Leaf, Users, TrendingUp, Shield, ArrowRight, Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const [marketPrices, setMarketPrices] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     fetchMarketPrices();
@@ -45,19 +45,48 @@ const Index = () => {
               <span className="text-2xl font-bold text-green-800">Farm Direct</span>
             </div>
             
+            {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-6">
               <a href="#about" className="text-gray-600 hover:text-green-600 transition-colors">About Us</a>
               <a href="#how-it-works" className="text-gray-600 hover:text-green-600 transition-colors">How It Works</a>
               <a href="#market-prices" className="text-gray-600 hover:text-green-600 transition-colors">Market Prices</a>
-              <a href="#contact" className="text-gray-600 hover:text-green-600 transition-colors">Contact</a>
+              <Link to="/contact" className="text-gray-600 hover:text-green-600 transition-colors">Contact</Link>
             </div>
             
-            <Link to="/auth">
-              <Button className="bg-green-600 hover:bg-green-700">
-                Login / Sign Up
-              </Button>
-            </Link>
+            {/* Desktop Auth Button */}
+            <div className="hidden md:block">
+              <Link to="/auth">
+                <Button className="bg-green-600 hover:bg-green-700">
+                  Login / Sign Up
+                </Button>
+              </Link>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              className="md:hidden p-2"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
           </div>
+
+          {/* Mobile Navigation Menu */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden mt-4 pb-4 border-t border-green-100">
+              <div className="flex flex-col space-y-4 mt-4">
+                <a href="#about" className="text-gray-600 hover:text-green-600 transition-colors py-2">About Us</a>
+                <a href="#how-it-works" className="text-gray-600 hover:text-green-600 transition-colors py-2">How It Works</a>
+                <a href="#market-prices" className="text-gray-600 hover:text-green-600 transition-colors py-2">Market Prices</a>
+                <Link to="/contact" className="text-gray-600 hover:text-green-600 transition-colors py-2">Contact</Link>
+                <Link to="/auth" className="pt-2">
+                  <Button className="bg-green-600 hover:bg-green-700 w-full">
+                    Login / Sign Up
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
